@@ -1,0 +1,251 @@
+using System;
+using System.IO;
+using System.Linq;
+
+class Program
+{
+    static string currentPath = Environment.CurrentDirectory;
+
+    static void Main()
+    {
+        while (true)
+        {
+            Console.Clear();
+            Console.WriteLine("Файловий менеджер(Вибір 1-6)");
+            Console.WriteLine("Поточна папка: " + currentPath);
+            Console.WriteLine();
+            Console.WriteLine("1 — Показати файли та папки");
+            Console.WriteLine("2 — Відкрити папку");
+            Console.WriteLine("3 — Повернутися до батьківської папки");
+            Console.WriteLine("4 — Показати вміст файлу");
+            Console.WriteLine("5 — Видалити файл або папку");
+            Console.WriteLine("6 — Перейменувати файл або папку");
+            Console.WriteLine("0 — Вихід");
+            Console.Write("\nВаш вибір: ");
+
+            string choice = Console.ReadLine();
+
+            try
+            {
+                switch (choice)
+                {
+                    case "1":
+                        ShowEntries();
+                        break;
+                    case "2":
+                        OpenDirectory();
+                        break;
+                    case "3":
+                        GoToParent();
+                        break;
+                    case "4":
+                        ShowFileContent();
+                        break;
+                    case "5":
+                        DeleteEntry();
+                        break;
+                    case "6":
+                        RenameEntry();
+                        break;
+                    case "0":
+                        return;
+                    default:
+                        Console.WriteLine("Невідома команда.");
+                        Pause();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Помилка: " + ex.Message);
+                Pause();
+            }
+        }
+    }
+
+    static string[] GetEntries()
+    {
+        return Directory.GetFileSystemEntries(currentPath);
+    }
+
+    static void ShowEntries()
+    {
+        string[] entries = GetEntries();
+
+        if (entries.Length == 0)
+        {
+            Console.WriteLine("\nПапка порожня.");
+        }
+        else
+        {
+            Console.WriteLine("\nВміст папки:");
+
+            foreach (string entry in entries)
+            {
+                bool isDirectory = Directory.Exists(entry);
+                string type = isDirectory ? "[Папка]" : "[Файл]";
+                Console.WriteLine(type + " " + Path.GetFileName(entry));
+            }
+        }
+
+        Pause();
+    }
+
+    static void OpenDirectory()
+    {
+        Console.Write("Введіть назву папки: ");
+        string name = Console.ReadLine();
+
+        string path = FindEntry(name);
+
+        if (path == null || !Directory.Exists(path))
+        {
+            Console.WriteLine("Папку не знайдено.");
+        }
+        else
+        {
+            currentPath = path;
+        }
+
+        Pause();
+    }
+
+    static void GoToParent()
+    {
+        DirectoryInfo parent = Directory.GetParent(currentPath);
+
+        if (parent == null)
+        {
+            Console.WriteLine("Ви вже перебуваєте в кореневій папці.");
+            Pause();
+            return;
+        }
+
+        currentPath = parent.FullName;
+    }
+
+    static void ShowFileContent()
+    {
+        Console.Write("Введіть назву файлу: ");
+        string name = Console.ReadLine();
+
+        string path = FindEntry(name);
+
+        if (path == null || !File.Exists(path))
+        {
+            Console.WriteLine("Файл не знайдено.");
+        }
+        else
+        {
+            Console.WriteLine("\n<<<<<<<<Вміст файлу>>>>>>>");
+            Console.WriteLine(File.ReadAllText(path));
+            Console.WriteLine(" <<<<<<<<<Кінець файлу>>>>>>>>");
+        }
+
+        Pause();
+    }
+
+    static void DeleteEntry()
+    {
+        Console.Write("Введіть назву файлу або папки: ");
+        string name = Console.ReadLine();
+
+        string path = FindEntry(name);
+
+        if (path == null)
+        {
+            Console.WriteLine("Файл або папку не знайдено.");
+            Pause();
+            return;
+        }
+
+        bool isDirectory = Directory.Exists(path);
+
+        if (isDirectory)
+        {
+            Console.Write("Видалити папку разом з усім її вмістом? (так/ні): ");
+            if (!string.Equals(Console.ReadLine(), "так", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Видалення скасовано.");
+                Pause();
+                return;
+            }
+
+            Directory.Delete(path, true);
+        }
+        else
+        {
+            File.Delete(path);
+        }
+
+        Console.WriteLine("Видалено.");
+        Pause();
+    }
+
+    static void RenameEntry()
+    {
+        Console.Write("Введіть поточну назву файлу або папки: ");
+        string oldName = Console.ReadLine();
+
+        string oldPath = FindEntry(oldName);
+
+        if (oldPath == null)
+        {
+            Console.WriteLine("Файл або папку не знайдено.");
+            Pause();
+            return;
+        }
+
+        Console.Write("Введіть нову назву: ");
+        string newName = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(newName) ||
+            newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            Console.WriteLine("Некоректна назва.");
+            Pause();
+            return;
+        }
+
+        string newPath = Path.Combine(currentPath, newName);
+
+        if (File.Exists(newPath) || Directory.Exists(newPath))
+        {
+            Console.WriteLine("Файл або папка з такою назвою вже існує.");
+            Pause();
+            return;
+        }
+
+        if (Directory.Exists(oldPath))
+        {
+            Directory.Move(oldPath, newPath);
+        }
+        else
+        {
+            File.Move(oldPath, newPath);
+        }
+
+        Console.WriteLine("Перейменовано.");
+        Pause();
+    }
+
+    static string FindEntry(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return GetEntries().FirstOrDefault(
+            entry => string.Equals(
+                Path.GetFileName(entry),
+                name,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    static void Pause()
+    {
+        Console.WriteLine("\nНатисніть Enter, щоб продовжити...");
+        Console.ReadLine();
+    }
+}
